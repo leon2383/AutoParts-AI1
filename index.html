@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111111">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>AutoParts AI V1</title>
+<style>
+:root{--bg:#f5f5f7;--card:#fff;--text:#111;--muted:#6b6b73;--line:#ddd;--accent:#111;--ok:#17833b;--warn:#b56a00;--bad:#b42318}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",system-ui,sans-serif}
+header{position:sticky;top:0;z-index:10;background:#ffffffee;backdrop-filter:blur(18px);border-bottom:1px solid var(--line);padding:calc(12px + env(safe-area-inset-top)) 16px 12px}
+header .title{font-size:22px;font-weight:800}header .sub{font-size:12px;color:var(--muted);margin-top:2px}
+main{max-width:760px;margin:auto;padding:14px 14px calc(90px + env(safe-area-inset-bottom))}
+.card{background:var(--card);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 2px 14px #0000000d;border:1px solid #eee}
+h2{font-size:17px;margin:0 0 12px}h3{font-size:15px;margin:10px 0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{display:block;font-size:12px;color:var(--muted);font-weight:600;margin-bottom:5px}
+input,select,textarea{width:100%;padding:12px;border:1px solid #cfcfd4;border-radius:12px;background:#fff;font-size:16px;color:#111}
+textarea{min-height:90px;resize:vertical}
+button{border:0;border-radius:13px;padding:12px 15px;background:var(--accent);color:#fff;font-size:15px;font-weight:700}
+button.secondary{background:#eee;color:#111}button.danger{background:#fee;color:#a00}
+.actions{display:flex;gap:8px;flex-wrap:wrap}.actions button{flex:1;min-width:120px}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:12px 0}.tab{background:#e9e9ed;color:#333}.tab.active{background:#111;color:#fff}
+.hidden{display:none!important}
+.result{border:1px solid #e1e1e5;border-radius:15px;padding:13px;margin:10px 0}
+.row{display:flex;justify-content:space-between;gap:10px;align-items:center}.price{font-size:21px;font-weight:800}.muted{color:var(--muted);font-size:13px}.small{font-size:12px;color:var(--muted)}
+.badge{display:inline-block;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:700;background:#eee;margin:2px}.ok{background:#e8f7ed;color:var(--ok)}.warn{background:#fff2dc;color:var(--warn)}.bad{background:#fdecea;color:var(--bad)}
+.score{font-weight:800}.meter{height:7px;border-radius:9px;background:#e8e8eb;overflow:hidden;margin:7px 0}.meter>i{display:block;height:100%;background:#111}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fffffff2;backdrop-filter:blur(18px);border-top:1px solid var(--line);padding:8px 12px calc(8px + env(safe-area-inset-bottom));z-index:20}
+.navgrid{max-width:760px;margin:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}nav button{background:transparent;color:#555;padding:7px 3px;font-size:11px}nav button.active{color:#111;font-weight:800}
+.notice{padding:11px;border-radius:12px;background:#f0f0f3;font-size:13px;line-height:1.4}
+.empty{text-align:center;color:var(--muted);padding:25px 5px}
+hr{border:0;border-top:1px solid #eee;margin:14px 0}
+code{background:#eee;padding:2px 5px;border-radius:5px}
+</style>
+</head>
+<body>
+<header><div class="title">🔧 AutoParts AI</div><div class="sub">V1 · eigener kostenloser Prototyp · iPhone-first</div></header>
+
+<main>
+<section id="screen-home">
+<div class="card">
+<h2>🚗 Fahrzeug</h2>
+<div class="grid">
+<div><label>HSN</label><input id="hsn" inputmode="numeric" placeholder="z. B. 0928"></div>
+<div><label>TSN</label><input id="tsn" placeholder="z. B. 8850193"></div>
+</div>
+<label>VIN / Fahrgestellnummer</label><input id="vin" autocomplete="off" placeholder="17 Zeichen – optional">
+<div class="actions" style="margin-top:8px"><button onclick="identifyVehicle()">Fahrzeug prüfen</button><button class="secondary" onclick="saveVehicle()">Speichern</button></div>
+<div id="vehicleOut"></div>
+</div>
+
+<div class="card">
+<h2>🔎 Teil suchen</h2>
+<label>Freie Anfrage</label>
+<textarea id="query" placeholder="z. B. Radlager vorne rechts, Zahnriemensatz, Bremsen vorne komplett"></textarea>
+<div class="actions"><button onclick="searchParts()">Teile finden</button><button class="secondary" onclick="voiceInput()">🎙️ Sprache</button></div>
+</div>
+
+<div id="results"></div>
+</section>
+
+<section id="screen-garage" class="hidden">
+<div class="card"><h2>🚘 Meine Fahrzeuge</h2><div id="garage"></div>
+<button class="secondary" onclick="clearGarage()">Garage löschen</button></div>
+</section>
+
+<section id="screen-data" class="hidden">
+<div class="card"><h2>📚 Eigener Teilekatalog</h2>
+<p class="small">Hier kannst du später eigene Artikel, OE-Nummern und Preise ergänzen. Die Daten bleiben lokal auf diesem Gerät.</p>
+<label>Artikelnummer</label><input id="newNo" placeholder="z. B. VKBA1234">
+<label>Hersteller</label><input id="newBrand" placeholder="z. B. SKF">
+<label>Bezeichnung</label><input id="newName" placeholder="Radlagersatz Vorderachse">
+<label>Preis (€)</label><input id="newPrice" type="number" step="0.01" placeholder="74.90">
+<label>OE-Nummer(n), mit Komma trennen</label><input id="newOE" placeholder="1234567, 7654321">
+<label>Suchbegriffe, mit Komma trennen</label><input id="newTags" placeholder="radlager, vorne, abs">
+<div class="actions"><button onclick="addPart()">Artikel hinzufügen</button><button class="secondary" onclick="exportData()">Daten exportieren</button><button class="secondary" onclick="document.getElementById('importFile').click()">Importieren</button></div>
+<input id="importFile" type="file" accept=".json,application/json" class="hidden" onchange="importData(event)">
+</div>
+<div class="card"><h2>Artikel im lokalen Katalog</h2><div id="localParts"></div></div>
+</section>
+
+<section id="screen-settings" class="hidden">
+<div class="card"><h2>🤖 KI</h2>
+<div class="notice">V1 funktioniert ohne KI-API: Die Kompatibilitätsprüfung läuft regelbasiert. Eine echte lokale KI wie Ollama kann später über einen kleinen Connector angeschlossen werden. So entstehen keine laufenden KI-Kosten.</div>
+<hr>
+<label>Optionale Ollama-Adresse</label><input id="ollamaUrl" placeholder="http://192.168.x.x:11434">
+<label>Modell</label><input id="ollamaModel" placeholder="llama3.2">
+<button onclick="saveSettings()">Einstellungen speichern</button>
+</div>
+<div class="card"><h2>💾 Daten</h2><div class="actions"><button class="secondary" onclick="exportData()">Backup erstellen</button><button class="danger" onclick="factoryReset()">Alles zurücksetzen</button></div></div>
+<div class="card"><h2>ℹ️ Was V1 kann</h2><p class="small">HSN/TSN-Fahrzeugerkennung aus dem eingebauten Demo-/Eigenkatalog, freie Teileanfragen, lokale Artikel, Preisvergleich innerhalb der gespeicherten Quellen, Bestandsfeld, OE-Referenzen, Kompatibilitäts-Score, Backup/Import und optionale KI-Anbindung.</p><p class="small"><b>Wichtig:</b> V1 behauptet nicht, unbekannte VINs oder Fahrzeug-Teile-Zuordnungen zu kennen. Für echte Vollabdeckung müssen später rechtmäßig nutzbare Fahrzeug-/Teiledaten ergänzt werden.</p></div>
+</section>
+</main>
+
+<nav><div class="navgrid">
+<button id="nav-home" class="active" onclick="showScreen('home')">🔎<br>Suche</button>
+<button id="nav-garage" onclick="showScreen('garage')">🚗<br>Garage</button>
+<button id="nav-data" onclick="showScreen('data')">📚<br>Katalog</button>
+<button id="nav-settings" onclick="showScreen('settings')">⚙️<br>Einstellungen</button>
+</div></nav>
+
+<script>
+const KEY='autoparts_ai_v1';
+const demoVehicles=[
+{hsn:'0928',tsn:'8850193',make:'Ford',model:'Mondeo I',type:'GBP',engine:'1.6 16V',power:'88 PS / 65 kW',year:'1993–1996',fuel:'Benzin',abs:true},
+{hsn:'0035',tsn:'BVK',make:'Opel',model:'Mokka',type:'J-A',engine:'1.6 CDTI',power:'100 kW',year:'2015–2016',fuel:'Diesel',abs:true}
+];
+const demoParts=[
+{id:'SKF-DEMO-VKBA',brand:'SKF',name:'Radlagersatz Vorderachse',price:74.90,seller:'Demo-Anbieter A',stock:2,oe:['97GB-2C300-AA'],tags:['radlager','radlager vorne','vorne','fahrwerk'],quality:5},
+{id:'FAG-DEMO-713',brand:'FAG',name:'Radlagersatz Vorderachse',price:79.90,seller:'Demo-Anbieter B',stock:4,oe:['97GB-2C300-AA'],tags:['radlager','radlager vorne','vorne','fahrwerk'],quality:5},
+{id:'MEYLE-DEMO-100',brand:'MEYLE',name:'Radlagersatz Vorderachse',price:69.40,seller:'Demo-Anbieter C',stock:1,oe:['97GB-2C300-AA'],tags:['radlager','radlager vorne','vorne','fahrwerk'],quality:4},
+{id:'FEBI-DEMO-200',brand:'Febi',name:'Radlagersatz Vorderachse',price:65.89,seller:'Demo-Anbieter D',stock:0,oe:['97GB-2C300-AA'],tags:['radlager','radlager vorne','vorne','fahrwerk'],quality:3},
+{id:'GENERIC-OIL',brand:'Eigenkatalog',name:'Motoröl 5W-30',price:34.90,seller:'Lokaler/selbst gepflegter Anbieter',stock:0,oe:[],tags:['öl','motoröl','5w30'],quality:2}
+];
+function state(){return JSON.parse(localStorage.getItem(KEY)||'{"garage":[],"parts":[],"settings":{}}')}
+function setState(s){localStorage.setItem(KEY,JSON.stringify(s))}
+function allParts(){return [...demoParts,...state().parts]}
+function showScreen(s){
+['home','garage','data','settings'].forEach(x=>document.getElementById('screen-'+x).classList.toggle('hidden',x!==s));
+document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));document.getElementById('nav-'+s).classList.add('active');
+if(s==='garage')renderGarage(); if(s==='data')renderLocalParts(); if(s==='settings')loadSettings();
+}
+function currentVehicle(){
+const s=state(); return s.currentVehicle||null
+}
+function identifyVehicle(){
+const h=norm(document.getElementById('hsn').value),t=norm(document.getElementById('tsn').value),vin=norm(document.getElementById('vin').value);
+let v=demoVehicles.find(x=>norm(x.hsn)===h&&norm(x.tsn)===t);
+let out='';
+if(v){stateSaveCurrent(v);out=`<div class="card"><div class="badge ok">✓ Fahrzeug eindeutig erkannt</div><h3>${esc(v.make)} ${esc(v.model)} ${esc(v.type)}</h3><div class="muted">${esc(v.engine)} · ${esc(v.power)} · ${esc(v.year)} · ${esc(v.fuel)}</div></div>`}
+else if(vin){out=`<div class="notice warn">⚠️ VIN ist eingetragen, aber V1 hat keinen echten VIN-Dienst. Es wird nichts geraten. Bitte HSN/TSN oder später einen eigenen VIN-Datensatz verwenden.</div>`}
+else out=`<div class="notice warn">⚠️ Kein Fahrzeug im lokalen Katalog gefunden. V1 fragt keine kostenpflichtige Datenbank ab.</div>`;
+document.getElementById('vehicleOut').innerHTML=out;
+}
+function stateSaveCurrent(v){let s=state();s.currentVehicle=v;setState(s)}
+function saveVehicle(){
+const v=currentVehicle(); if(!v){alert('Erst Fahrzeug prüfen.');return}
+let s=state();if(!s.garage.some(x=>x.hsn===v.hsn&&x.tsn===v.tsn))s.garage.push(v);setState(s);renderGarage();alert('Fahrzeug gespeichert.')}
+function renderGarage(){
+const g=state().garage;document.getElementById('garage').innerHTML=g.length?g.map((v,i)=>`<div class="result"><b>${esc(v.make)} ${esc(v.model)} ${esc(v.type)}</b><div class="muted">${esc(v.engine)} · HSN ${esc(v.hsn)} / TSN ${esc(v.tsn)}</div><button class="secondary" onclick="useGarage(${i})">Verwenden</button></div>`).join(''):'<div class="empty">Noch kein Fahrzeug gespeichert.</div>'}
+function useGarage(i){let v=state().garage[i];stateSaveCurrent(v);document.getElementById('hsn').value=v.hsn;document.getElementById('tsn').value=v.tsn;document.getElementById('vehicleOut').innerHTML=`<div class="badge ok">✓ ${esc(v.make)} ${esc(v.model)} ausgewählt</div>`;showScreen('home')}
+function clearGarage(){if(confirm('Garage wirklich löschen?')){let s=state();s.garage=[];setState(s);renderGarage()}}
+function searchParts(){
+const q=document.getElementById('query').value.trim().toLowerCase();if(!q){alert('Bitte ein Teil eingeben.');return}
+const words=q.split(/[^a-z0-9äöüß-]+/).filter(Boolean);
+let candidates=allParts().map(p=>{let hit=p.tags.filter(t=>q.includes(t)||t.includes(q)).length; if(p.name.toLowerCase().includes(q))hit+=3; return {...p,hit}}).filter(p=>p.hit>0).sort((a,b)=>b.hit-a.hit||a.price-b.price);
+const v=currentVehicle();
+if(!v){document.getElementById('results').innerHTML='<div class="card"><div class="notice warn">⚠️ Kein Fahrzeug ausgewählt. Die Teile können trotzdem gesucht werden, aber die Fahrzeug-Kompatibilitätsprüfung ist eingeschränkt.</div></div>'}
+let html='<div class="card"><h2>🧩 Ergebnisse</h2>';
+if(!candidates.length)html+='<div class="empty">Keine passenden Artikel im lokalen Katalog. Über „Katalog“ kannst du eigene Artikel hinzufügen.</div>';
+candidates.forEach(p=>{let check=verify(v,q,p);html+=resultCard(p,check)});
+html+='</div><div class="card"><h2>🤖 Kontrollbericht</h2><div class="notice">'+aiSummary(v,q,candidates)+'</div></div>';
+document.getElementById('results').innerHTML=html}
+function verify(v,q,p){
+let score=45;let reasons=[];
+if(v){score+=20;reasons.push('Fahrzeug ist ausgewählt.')}else reasons.push('Kein Fahrzeug ausgewählt.');
+if(p.oe.length){score+=10;reasons.push('OE-Referenz vorhanden.')}
+if(p.quality>=4){score+=10;reasons.push('Herstellerbewertung hoch.')}else score+=4;
+if(p.stock>0){score+=10;reasons.push('Bestand ist als > 0 hinterlegt.')}else reasons.push('Kein Bestand hinterlegt.');
+if(p.hit>=2){score+=5;reasons.push('Suchbegriffe stimmen gut überein.')}
+return {score:Math.min(score,99),reasons}}
+function resultCard(p,c){
+let cls=c.score>=85?'ok':c.score>=65?'warn':'bad';
+return `<div class="result"><div class="row"><div><b>${esc(p.brand)}</b><br>${esc(p.name)}</div><div class="price">${p.price.toFixed(2)} €</div></div>
+<div class="muted">${esc(p.seller)} · ${p.stock>0?'🟢 '+p.stock+' Stück hinterlegt':'🔴 kein Bestand hinterlegt'}</div>
+<div style="margin-top:6px"><span class="badge ${cls}">${c.score}% Plausibilität</span><span class="badge">Qualität ${p.quality}/5</span></div>
+<div class="meter"><i style="width:${c.score}%"></i></div>
+<div class="small">${p.oe.length?'OE: '+esc(p.oe.join(', ')):'Keine OE-Referenz hinterlegt'}</div>
+<ul class="small">${c.reasons.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul></div>`}
+function aiSummary(v,q,c){
+if(!c.length)return 'Die lokale Kontrolllogik hat keine passenden Datensätze gefunden. Das System erfindet kein Ergebnis.';
+let best=[...c].sort((a,b)=>b.quality-a.quality||a.price-b.price)[0],cheap=[...c].sort((a,b)=>a.price-b.price)[0];
+let text=`Die Regelprüfung findet ${c.length} Kandidat(en). Günstigster gespeicherter Artikel: <b>${esc(cheap.brand)}</b> für ${cheap.price.toFixed(2)} €. Qualitäts-/Plausibilitätsfavorit: <b>${esc(best.brand)}</b>.`;
+if(v)text+=` Fahrzeug: <b>${esc(v.make)} ${esc(v.model)} ${esc(v.type)}</b>.`;
+text+=' Die Daten sind lokale Demo-/Eigenkatalogdaten und keine verbindliche Freigabe.';
+return text}
+function addPart(){
+let p={id:'LOCAL-'+Date.now(),brand:val('newBrand'),name:val('newName'),price:Number(val('newPrice')||0),seller:'Eigener Eintrag',stock:0,oe:val('newOE').split(',').map(x=>x.trim()).filter(Boolean),tags:val('newTags').toLowerCase().split(',').map(x=>x.trim()).filter(Boolean),quality:3};
+if(!p.brand||!p.name){alert('Hersteller und Bezeichnung fehlen.');return}
+let s=state();s.parts.push(p);setState(s);['newNo','newBrand','newName','newPrice','newOE','newTags'].forEach(id=>document.getElementById(id).value='');renderLocalParts();alert('Artikel lokal gespeichert.')}
+function renderLocalParts(){let p=state().parts;document.getElementById('localParts').innerHTML=p.length?p.map((x,i)=>`<div class="result"><b>${esc(x.brand)} – ${esc(x.name)}</b><div class="muted">${x.price.toFixed(2)} € · ${esc(x.oe.join(', '))}</div><button class="danger" onclick="deletePart(${i})">Löschen</button></div>`).join(''):'<div class="empty">Noch keine eigenen Artikel.</div>'}
+function deletePart(i){let s=state();s.parts.splice(i,1);setState(s);renderLocalParts()}
+function exportData(){const blob=new Blob([JSON.stringify(state(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='autoparts-ai-backup.json';a.click();URL.revokeObjectURL(a.href)}
+function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const x=JSON.parse(r.result);if(!x.garage||!x.parts)throw 0;setState(x);renderLocalParts();alert('Backup importiert.')}catch{alert('Ungültige Backup-Datei.')}};r.readAsText(f)}
+function loadSettings(){let s=state().settings||{};document.getElementById('ollamaUrl').value=s.ollamaUrl||'';document.getElementById('ollamaModel').value=s.ollamaModel||'llama3.2'}
+function saveSettings(){let s=state();s.settings={ollamaUrl:val('ollamaUrl'),ollamaModel:val('ollamaModel')};setState(s);alert('Gespeichert.')}
+function factoryReset(){if(confirm('Alle lokalen Daten löschen?')){localStorage.removeItem(KEY);location.reload()}}
+function voiceInput(){if(!('webkitSpeechRecognition' in window)){alert('Spracherkennung wird in diesem Browser nicht angeboten.');return}let R=new webkitSpeechRecognition();R.lang='de-DE';R.onresult=e=>document.getElementById('query').value=e.results[0][0].transcript;R.start()}
+function norm(x){return String(x||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'')}
+function val(id){return document.getElementById(id).value.trim()}
+function esc(x){return String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+</script>
+</body></html>
